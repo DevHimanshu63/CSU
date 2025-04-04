@@ -1,0 +1,219 @@
+<!doctype html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<script type="text/javascript" src="http://code.jquery.com/jquery-1.7.1.min.js"></script>
+<script type="text/javascript" src="./turn.min.js"></script>
+<audio id="pageTurnSound" src="./music.ogg" preload="auto"></audio>
+<style type="text/css">
+body {
+    background: #ccc;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+    touch-action: pan-y;
+}
+
+#magazine {
+    transform-origin: center;
+    background: white;
+    box-shadow: 0 0 20px rgba(0,0,0,0.2);
+    border: 1px solid #666;
+    border-radius: 3px;
+}
+
+#magazine .turn-page {
+    background-size: cover;
+    background-repeat: no-repeat;
+    background-position: center;
+    margin: 0 !important;
+    /* Remove any potential spacing */
+    box-shadow: none;
+    border: none;
+}
+
+/* Add book spine effect */
+#magazine .turn-page:even {
+    transform-origin: left center;
+}
+#magazine .turn-page:odd {
+    transform-origin: right center;
+}
+
+.nav-button {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    padding: 20px;
+    background: rgba(0,0,0,0.5);
+    color: white;
+    border-radius: 5px;
+    user-select: none;
+    z-index: 999;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(2px);
+}
+
+.nav-button:hover {
+    background: rgba(0,0,0,0.8);
+}
+
+.prev { left: 10px; }
+.next { right: 10px; }
+
+@media (max-width: 768px) {
+    #magazine {
+        width: 95vw !important;
+        height: 85vh !important;
+        margin: 10px;
+        border: 2px solid #444;
+        border-radius: 5px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+    
+    #magazine .turn-page {
+        background-size: contain;
+        padding: 15px;
+    }
+    
+    .nav-button {
+        padding: 20px;
+        font-size: 20px;
+        top: auto;
+        bottom: 20px;
+        transform: none;
+        background: rgba(0,0,0,0.7);
+    }
+}
+
+@media (max-width: 480px) {
+    #magazine {
+        height: 75vh !important;
+    }
+}
+
+.disabled {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+/* Remove any potential gaps between pages */
+.turn-page-wrapper {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+</style>
+</head>
+<body>
+<div class="nav-button prev">❮</div>
+<div id="magazine"></div>
+<div class="nav-button next">❯</div>
+
+<script>
+const magazine = document.getElementById('magazine');
+const totalPages = 133;
+
+for (let i = 0; i < totalPages; i++) {
+  const div = document.createElement('div');
+  div.style.backgroundImage = `url(./pages/${i}.jpg)`; // Add './pages/'
+  magazine.appendChild(div);
+}
+</script>
+
+<script type="text/javascript">
+$(function() {
+    const $magazine = $('#magazine');
+    const $prevBtn = $('.prev');
+    const $nextBtn = $('.next');
+    const pageSound = document.getElementById('pageTurnSound');
+    let isMobile = false;
+
+    function playPageTurnSound() {
+        pageSound.currentTime = 0;
+        pageSound.play().catch(error => {
+            console.log('Audio play failed:', error);
+        });
+    }
+
+    function initializeFlipbook() {
+        isMobile = window.matchMedia('(max-width: 768px)').matches;
+        
+        const options = {
+            acceleration: true,
+            gradients: false, // Disable gradients to remove shadow effects
+            elevation: 0, // Remove elevation effect
+            display: isMobile ? 'single' : 'double',
+            pageMargin: 0, // Ensure no margin between pages
+            width: 1152, // Fixed width for desktop
+            height: 752, // Fixed height for desktop
+            when: {
+                turning: function(e, page, view) {
+                    // Add realistic page turning behavior
+                    $(this).turn('disable', true);
+                },
+                turned: function(e, page) {
+                    $prevBtn.toggleClass('disabled', page === 1);
+                    $nextBtn.toggleClass('disabled', page === totalPages);
+                    $(this).turn('disable', false);
+                }
+            }
+        };
+
+        if (isMobile) {
+            // Mobile-specific adjustments
+            options.width = window.innerWidth - 20;
+            options.height = window.innerHeight * 0.75;
+        }
+
+        if ($magazine.data('turn')) {
+            const currentPage = $magazine.turn('page');
+            $magazine.turn('destroy').turn(options).turn('page', currentPage);
+        } else {
+            $magazine.turn(options);
+        }
+    }
+
+    initializeFlipbook();
+
+    $('.prev').on('click touchstart', function(e) {
+        e.preventDefault();
+        if(!$(this).hasClass('disabled')) {
+            $magazine.turn('previous');
+            playPageTurnSound();
+        }
+    });
+
+    $('.next').on('click touchstart', function(e) {
+        e.preventDefault();
+        if(!$(this).hasClass('disabled')) {
+            $magazine.turn('next');
+            playPageTurnSound();
+        }
+    });
+
+    $(window).on('keydown', function(e){
+        if (e.keyCode === 37) {
+            $magazine.turn('previous');
+            playPageTurnSound();
+        }
+        else if (e.keyCode === 39) {
+            $magazine.turn('next');
+            playPageTurnSound();
+        }
+    });
+
+    let resizeTimer;
+    $(window).on('resize orientationchange', function() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            initializeFlipbook();
+        }, 100);
+    });
+});
+</script>
+</body>
+</html>
